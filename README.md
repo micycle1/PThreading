@@ -3,9 +3,15 @@ A framework to allow multithreaded drawing in Processing.
 
 ## Motivation
 
-Natively, Processing runs on a single thread -- the *draw()* loop . Any attempts to call Processing drawing functions (like *rect()*) from other threads (by using Processing's thread()) will cause errors and instability. 
+Natively, Processing runs on a single thread -- the *draw()* loop.
 
-Processing does indeed provide an easy way to thread, but this is suited for computationally intensive tasks -- you can compute on other threads but not draw from them, leaving draw-heavy sketches lacking.
+Processing does indeed provide a quick and dirty way to implement a simple thread with its *thread()* method. Though as the [docs](https://processing.org/reference/thread_.html) describe...
+
+> You cannot draw to the screen from a function called by thread(). Because it runs independently, the code will not be synchronized to the animation thread, causing strange or at least inconsistent results.
+
+... leaving *thread()* suitable only for CPU-bound sketches (since calculation can be done in *thread()* so that any code in the *draw()* loop can run without waiting).
+
+However, support for threading in the context of draw-call-heavy sketches k
 
 For most sketches, this is ok, but draw-heavy sketches will experience slowdown when rasterization cannot keep up with the target framerate.
 
