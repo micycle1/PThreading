@@ -1,4 +1,5 @@
 # PThreading
+An easy multithreading drawing framework for Processing.
 A framework to allow multithreaded drawing in Processing.
 
 ## Motivation
@@ -22,3 +23,11 @@ Processing's thread() is suitable for CPU heavy. THen update state (like physics
 Drawing into `PGraphics` objects is thread-safe -- `PThreading` simplifies this process.
 
 ## Useage
+
+### What about keyboard/mouse?
+Override 
+
+## Limitations
+
+The `PGraphics` object that each thread draws into uses the `Java2D` renderer, since this is the only renderer that can be drawn into using other threads.
+As a consequence you cannot **thread** `OPENGL` sketches, or sketches that require 3D draw functions (your main sketch can still use, but all thread drawing must be 2D).

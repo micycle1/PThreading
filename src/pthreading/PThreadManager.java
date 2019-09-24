@@ -12,7 +12,7 @@ import org.apache.commons.lang3.ClassUtils;
 import processing.core.PApplet;
 
 /**
- * This is what threads the classes.
+ * TODO getTiming() This is what threads the classes.
  * 
  * There are two types of constructor for the thread manager: pass instances of
  * your class that extends a {@link pthreading.PThread PThread}; or pass the
@@ -23,6 +23,8 @@ import processing.core.PApplet;
  *
  */
 public class PThreadManager {
+
+	private static final int DEFAULT_FPS = 60;
 
 	private boolean live;
 	private final int targetFPS;
@@ -118,10 +120,23 @@ public class PThreadManager {
 		}
 		live = true;
 	}
+	
+	/**
+	 * No FPS, use defautk fps
+	 * @param p
+	 */
+	public PThreadManager(PApplet p) {
+		threads = new ArrayList<PThread>();
+		this.targetFPS = DEFAULT_FPS;
+		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
+		p.registerMethod("dispose", this);
+		live = false;
+	}
 
 	/**
 	 * empty thread manager; user must add instances. Use #createNewThread to add
-	 * threads.
+	 * threads. Specify an FPS; if not, then specifiy per-thread; if not that, then
+	 * will use default (60)
 	 * 
 	 * @param p
 	 * @param targetFPS
@@ -195,6 +210,7 @@ public class PThreadManager {
 
 	/**
 	 * Stops any existing threads and clears the internal buffer (can't be resumed).
+	 * 
 	 * @see #reset()
 	 */
 	public void flush() {

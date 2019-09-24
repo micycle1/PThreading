@@ -13,6 +13,14 @@ import processing.core.PGraphics;
  */
 public abstract class PThread {
 
+	private boolean timing = true;
+
+	/**
+	 * Will be at most target fps, useful is lower and you wanbt to see performace
+	 * or thwether your thread is more cpu than draw bound. (in millis)
+	 */
+	protected long calcTime, drawTime;
+
 	/**
 	 * Draw into this.
 	 */
@@ -26,7 +34,9 @@ public abstract class PThread {
 	Runnable r;
 
 	/**
-	 * Merely instantiating a thread will not run it. Add it to a {@link pthreading.PThreadManager PThreadManager}. 
+	 * Merely instantiating a thread will not run it. Add it to a
+	 * {@link pthreading.PThreadManager PThreadManager}.
+	 * 
 	 * @param p
 	 */
 	public PThread(PApplet p) {
@@ -36,8 +46,18 @@ public abstract class PThread {
 			public void run() {
 				pg.beginDraw();
 				pg.clear();
-				calc();
-				draw();
+				if (timing) {
+					final long t1 = System.nanoTime();
+					calc();
+					final long t2 = System.nanoTime();
+					draw();
+					final long t3 = System.nanoTime();
+					calcTime = (t2 - t1);
+					drawTime = (t3 - t2);
+				} else {
+					calc();
+					draw();
+				}
 				pg.endDraw();
 			}
 		};
@@ -48,6 +68,7 @@ public abstract class PThread {
 	 */
 	final void render() {
 		p.image(pg, 0, 0);
+		timing = false;
 	}
 
 	/**
@@ -66,5 +87,10 @@ public abstract class PThread {
 		pg.beginDraw();
 		pg.clear();
 		pg.endDraw();
+	}
+	
+	public int getCalcTime() {
+		timing = true;
+		return (int) (calcTime/1000000);
 	}
 }
