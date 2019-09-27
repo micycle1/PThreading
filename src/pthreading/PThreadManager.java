@@ -26,10 +26,12 @@ public class PThreadManager {
 
 	private static final int DEFAULT_FPS = 60;
 
+	private final PApplet p;
 	private boolean live;
 	private final int targetFPS;
 	private ScheduledExecutorService scheduler;
 	private final ArrayList<PThread> threads;
+	private boolean boundToParent = false;
 
 	/**
 	 * NO class ARGS
@@ -45,6 +47,7 @@ public class PThreadManager {
 			throw new IllegalArgumentException("threadCount should be more than 0");
 		}
 
+		this.p = p;
 		threads = new ArrayList<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
@@ -83,6 +86,7 @@ public class PThreadManager {
 			throw new IllegalArgumentException("threadCount should be more than 0");
 		}
 
+		this.p = p;
 		threads = new ArrayList<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
@@ -120,12 +124,14 @@ public class PThreadManager {
 		}
 		live = true;
 	}
-	
+
 	/**
 	 * No FPS, use defautk fps
+	 * 
 	 * @param p
 	 */
 	public PThreadManager(PApplet p) {
+		this.p = p;
 		threads = new ArrayList<PThread>();
 		this.targetFPS = DEFAULT_FPS;
 		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
@@ -142,6 +148,7 @@ public class PThreadManager {
 	 * @param targetFPS
 	 */
 	public PThreadManager(PApplet p, int targetFPS) {
+		this.p = p;
 		threads = new ArrayList<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
@@ -180,8 +187,20 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Stop Doesn't clear threads from the buffer. Threads will continue to render
-	 * there
+	 * Removes and terminates a given thread from the thread manager. Will not
+	 * return an error if the thread is not found.
+	 * 
+	 * @param thread the thread to remove
+	 */
+	public void removeThread(PThread thread) {
+		pauseThreads();
+		threads.remove(thread);
+		resumeThreads();
+	}
+
+	/**
+	 * Stops and Doesn't clear threads from the buffer. Threads will continue to
+	 * render there
 	 */
 	public void pauseThreads() {
 		scheduler.shutdown();
@@ -189,6 +208,9 @@ public class PThreadManager {
 		live = false;
 	}
 
+	/**
+	 * Stops threads -- cannot be resumed, effectively resetting the thread manager.
+	 */
 	public void pauseAndClearThreads() {
 		threads.forEach(thread -> thread.clearPGraphics());
 		scheduler.shutdown();
@@ -227,10 +249,14 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Draw the threads' PGraphics Binds to PApplet.
+	 * Draw the threads' PGraphics.
+	 * 
+	 * @see #bindDraw()
 	 */
 	public void draw() {
-		threads.forEach(thread -> thread.render());
+		threads.forEach(t -> {
+			p.image(t.pthread, 0, 0);
+		});
 	}
 
 	/**
@@ -263,6 +289,35 @@ public class PThreadManager {
 	}
 
 	/**
+	 * First enables timing collection for each thread.
+	 * 
+	 * <p>[1000/{@link #getAverageDrawTime()}] returns FPS.<p>
+	 * 
+	 * @return
+	 */
+	public float getAverageDrawTime() {
+		if (!threads.isEmpty()) {
+			threads.forEach(thread -> thread.enableTiming());
+			return (float) threads.stream().mapToDouble(thread -> thread.drawTime).sum() / threads.size();
+		} else {
+			return 0;
+		}
+	}
+
+	/**
+	 * 
+	 * @return
+	 */
+	public float getAverageCalcTime() {
+		if (!threads.isEmpty()) {
+			threads.forEach(thread -> thread.enableTiming());
+			return (float) threads.stream().mapToDouble(thread -> thread.calcTime).sum() / threads.size();
+		} else {
+			return 0;
+		}
+	}
+
+	/**
 	 * Is the thread manager running any threads? If {@link #pauseThreads()} has
 	 * been called, this method will return false.
 	 * 
@@ -278,5 +333,32 @@ public class PThreadManager {
 	 */
 	public void dispose() {
 		scheduler.shutdown();
+	}
+
+	/**
+	 * Binds the {@link #draw()} method of this thread manager to the end of the
+	 * draw method of the parent PApplet, so you don't need to manually include a
+	 * call to {@link #draw() myManger.draw()} in the PApplet's draw() method. By
+	 * default,
+	 * 
+	 * @see #unBindDraw()
+	 */
+	public void bindDraw() {
+		if (!boundToParent) {
+			p.registerMethod("draw", this);
+			boundToParent = true;
+		}
+	}
+
+	/**
+	 * Binds the {@link #draw()} method of this thread manager (this is the default
+	 * behaviour).
+	 * 
+	 * @see #bindDraw()
+	 */
+	public void unBindDraw() {
+		if (boundToParent) {
+			p.unregisterMethod("draw", this);
+		}
 	}
 }

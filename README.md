@@ -2,6 +2,10 @@
 An easy multithreading drawing framework for Processing.
 A framework to allow multithreaded drawing in Processing.
 
+## Intro
+
+The framework consists of two classes: PThread and PThreadManager. You override the PThread class with your code and then add instances of this class to the PThreadManager, which runs the instances as threads that draw into the Processing stage.
+
 ## Motivation
 
 Natively, Processing runs on a single thread -- the *draw()* loop.
@@ -22,12 +26,19 @@ Processing's thread() is suitable for CPU heavy. THen update state (like physics
 
 Drawing into `PGraphics` objects is thread-safe -- `PThreading` simplifies this process.
 
-## Useage
+## Usage
+
+Override (small example)
+
+Instantiate mangager, draw loop
+
+### In Processing IDE
+
+### In standalone Java IDEs
 
 ### What about keyboard/mouse?
 Override 
 
 ## Limitations
-
-The `PGraphics` object that each thread draws into uses the `Java2D` renderer, since this is the only renderer that can be drawn into using other threads.
-As a consequence you cannot **thread** `OPENGL` sketches, or sketches that require 3D draw functions (your main sketch can still use, but all thread drawing must be 2D).
+Each thread uses the `Java2D` renderer, since this is the only renderer that allows PGraphics objects to be instantiated and drawn into from other threads.
+As a consequence you cannot **thread** `OPENGL` drawing, or any 3D draw functions. Note that you can still use the framework with a 3D sketch but any drawing with the threads is limited to 2D.

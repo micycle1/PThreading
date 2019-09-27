@@ -5,47 +5,57 @@ import processing.core.PGraphics;
 
 /**
  * PThread. Extend this class, overriding the {@link #calc()} and
- * {@link #draw()} methods with your own code. Prefix every call to a Processing
- * method with
+ * {@link #draw()} methods with your own code.
+ * 
+ * <p>
+ * Prefix every call to a Processing draw method with pthread -- for example:
+ * <i>pthread.rect(10,10,10,10);</i>
+ * <p>
+ * 
+ * <p>
+ * Refer to any PApplet variable by prefixing it with papplet -- for example:
+ * <i>p.mousePressed</i>
+ * <p/>
  * 
  * @author micycle1
  *
  */
 public abstract class PThread {
 
-	private boolean timing = true;
+	private boolean timing = false;
 
-	/**
-	 * Will be at most target fps, useful is lower and you wanbt to see performace
-	 * or thwether your thread is more cpu than draw bound. (in millis)
-	 */
 	protected long calcTime, drawTime;
 
 	/**
-	 * Draw into this.
+	 * The PGraphics object the thread should draw into.
 	 */
-	protected PGraphics pg;
+	protected PGraphics pthread;
+
+	/**
+	 * Exposed so that any subclasses can access PApplet variables (such as mouse
+	 * coords).
+	 */
+	protected final PApplet papplet;
 
 	/**
 	 * Exposed in {@link #PThread(PApplet) PThread} so that you can refer to of the
 	 * parent PApplet (like mouseX, or ) in your code.
 	 */
-	protected PApplet p;
 	Runnable r;
 
 	/**
-	 * Merely instantiating a thread will not run it. Add it to a
-	 * {@link pthreading.PThreadManager PThreadManager}.
+	 * Constructs a thread. NOTE: Merely instantiating a thread will not run it. Add
+	 * it to a {@link pthreading.PThreadManager PThreadManager} for it to execute.
 	 * 
 	 * @param p
 	 */
 	public PThread(PApplet p) {
-		this.p = p;
-		pg = p.createGraphics(p.width, p.height);
+		this.papplet = p;
+		pthread = p.createGraphics(p.width, p.height);
 		r = new Runnable() {
 			public void run() {
-				pg.beginDraw();
-				pg.clear();
+				pthread.beginDraw();
+				pthread.clear();
 				if (timing) {
 					final long t1 = System.nanoTime();
 					calc();
@@ -58,39 +68,76 @@ public abstract class PThread {
 					calc();
 					draw();
 				}
-				pg.endDraw();
+				pthread.endDraw();
 			}
 		};
 	}
 
 	/**
-	 * Renders the thread's PGraphics into the parent PApplet.
+	 * Must be overridden. <b>This code will be executed in a thread.</b> Put code
+	 * that. Remember to prefix calls to processing draw functions with
+	 * pthread.___() Internally, this method is called after {@link #calc()}.
+	 * 
+	 * @see #calc()
 	 */
-	final void render() {
-		p.image(pg, 0, 0);
-		timing = false;
-	}
+	protected abstract void draw();
 
 	/**
-	 * Must be overrided. Put code that
+	 * Optional override (you <i>can</i> do calculation-related code in
+	 * {@link #draw()}. <b>This code will be executed in a thread.</b> This is
+	 * useful when the 'unthread drawing' flag is true. Internally, this method is
+	 * called before {@link #draw()}.
+	 * 
+	 * @see #draw()
 	 */
-	public abstract void draw();
-
-	/**
-	 * Optional override (you can do calculation-related code in {@link #draw()}.
-	 * This is useful when the 'unthread drawing' flag is true
-	 */
-	public void calc() {
+	protected void calc() {
 	}
 
 	void clearPGraphics() {
-		pg.beginDraw();
-		pg.clear();
-		pg.endDraw();
+		pthread.beginDraw();
+		pthread.clear();
+		pthread.endDraw();
 	}
-	
-	public int getCalcTime() {
+
+	/**
+	 * Returns time taken for the draw loop to execute. Can be used with
+	 * {@link #getCalcTime()} to determine if a thread is calculation bound or
+	 * draw-call bound.
+	 * 
+	 * @return draw() execution time (milliseconds)
+	 */
+	final public float getDrawTime() {
 		timing = true;
-		return (int) (calcTime/1000000);
+		return (drawTime / 1000000f);
+	}
+
+	/**
+	 * 
+	 * @return calc() execution time (milliseconds)
+	 */
+	final public float getCalcTime() {
+		timing = true;
+		return (calcTime / 1000000f);
+	}
+
+	/**
+	 * Enables the collection of the last timing information. (May incur a slight
+	 * overhead)
+	 * 
+	 * @see #disableTiming()
+	 * @see #getDrawTime()
+	 * @see #getCalcTime()
+	 */
+	final public void enableTiming() {
+		timing = true;
+	}
+
+	/**
+	 * Disable timing information.
+	 * 
+	 * @see #enableTiming()
+	 */
+	final public void disableTiming() {
+		timing = false;
 	}
 }
