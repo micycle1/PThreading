@@ -34,6 +34,9 @@ Instantiate mangager, draw loop
 
 ### In Processing IDE
 
+if you need this library for only one sketch, you can just drag'n'drop the jar file on the PDE,
+[see](https://github.com/processing/processing/wiki/How-to-Install-a-Contributed-Library#non-processing-libraries)
+
 ### In standalone Java IDEs
 
 ### What about keyboard/mouse?

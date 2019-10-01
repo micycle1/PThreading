@@ -44,10 +44,12 @@ public abstract class PThread {
 	Runnable r;
 
 	/**
-	 * Constructs a thread. NOTE: Merely instantiating a thread will not run it. Add
-	 * it to a {@link pthreading.PThreadManager PThreadManager} for it to execute.
+	 * Constructs a thread.
+	 * <p>
+	 * NOTE: Merely instantiating a thread will not run it. Add it to a
+	 * {@link pthreading.PThreadManager PThreadManager} for it to execute.
 	 * 
-	 * @param p
+	 * @param p Parent PApplet
 	 */
 	public PThread(PApplet p) {
 		this.papplet = p;
@@ -74,16 +76,21 @@ public abstract class PThread {
 	}
 
 	/**
-	 * Must be overridden. <b>This code will be executed in a thread.</b> Put code
-	 * that. Remember to prefix calls to processing draw functions with
-	 * pthread.___() Internally, this method is called after {@link #calc()}.
+	 * This method must be overridden.
+	 * 
+	 * Override this method with code that
+	 * 
+	 * <b>This code will be executed in a thread.</b> Put code that. Remember to
+	 * prefix calls to processing draw functions with <i>pthread.___()</i> (eg.
+	 * <i>pthread.ellipse(50, 50, 50, 50)</i> Internally, this method is called
+	 * after {@link #calc()}.
 	 * 
 	 * @see #calc()
 	 */
 	protected abstract void draw();
 
 	/**
-	 * Optional override (you <i>can</i> do calculation-related code in
+	 * An optional override (you <i>can</i> do calculation-related code in
 	 * {@link #draw()}. <b>This code will be executed in a thread.</b> This is
 	 * useful when the 'unthread drawing' flag is true. Internally, this method is
 	 * called before {@link #draw()}.
@@ -100,7 +107,7 @@ public abstract class PThread {
 	}
 
 	/**
-	 * Returns time taken for the draw loop to execute. Can be used with
+	 * Returns time taken for the thread's draw() loop to execute. Can be used with
 	 * {@link #getCalcTime()} to determine if a thread is calculation bound or
 	 * draw-call bound.
 	 * 
@@ -112,6 +119,9 @@ public abstract class PThread {
 	}
 
 	/**
+	 * Returns time taken for the thread's calc() loop to execute. Can be used with
+	 * {@link #getDrawTime()} to determine if a thread is calculation bound or
+	 * draw-call bound.
 	 * 
 	 * @return calc() execution time (milliseconds)
 	 */
@@ -121,8 +131,8 @@ public abstract class PThread {
 	}
 
 	/**
-	 * Enables the collection of the last timing information. (May incur a slight
-	 * overhead)
+	 * Enables the collection of timing information (draw and calc time). May incur
+	 * a slight overhead. By default, timing information is not enabled.
 	 * 
 	 * @see #disableTiming()
 	 * @see #getDrawTime()
@@ -133,7 +143,8 @@ public abstract class PThread {
 	}
 
 	/**
-	 * Disable timing information.
+	 * Disables the collection of timing information (draw and calc time). By
+	 * default, timing information is not enabled.
 	 * 
 	 * @see #enableTiming()
 	 */

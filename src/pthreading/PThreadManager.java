@@ -12,13 +12,17 @@ import org.apache.commons.lang3.ClassUtils;
 import processing.core.PApplet;
 
 /**
- * TODO getTiming() This is what threads the classes.
+ * TODO can't add same thread twice? This is what threads the classes.
  * 
- * There are two types of constructor for the thread manager: pass instances of
- * your class that extends a {@link pthreading.PThread PThread}; or pass the
+ * <p>
+ * There are a few different constructors split into two types: pass instances
+ * of your class that extends a {@link pthreading.PThread PThread}; or pass the
  * class & number of threads and the thread manager will create 'threads' number
  * of instances
  * 
+ * {@link #draw()} is the most important method
+ * 
+ * @see #draw() draw() -- important
  * @author micycle1
  *
  */
@@ -73,11 +77,11 @@ public class PThreadManager {
 	 * @param p
 	 * @param targetFPS
 	 * @param threadCount
-	 * @param threadClass The thread class you have implemented. It should extend
-	 *                    the {@link proThread.PThread PThread} class;
+	 * @param threadClass The thread class you have extended. It should extend the
+	 *                    {@link proThread.PThread PThread} class;
 	 * @param args        Args to pass in (all threads will be constructed with the
-	 *                    same args) -- don't include the PApplet, only your custom
-	 *                    args.
+	 *                    same args) -- don't include the PApplet, only your
+	 *                    additional args.
 	 */
 	public PThreadManager(PApplet p, int targetFPS, int threadCount, Class<? extends PThread> threadClass,
 			Object... args) {
@@ -186,9 +190,71 @@ public class PThreadManager {
 		live = true;
 	}
 
+	public void addThread(Class<? extends PThread> threadClass, int threadCount) {
+		addThread(threadClass, threadCount, targetFPS, new Object[] {});
+	}
+
 	/**
-	 * Removes and terminates a given thread from the thread manager. Will not
-	 * return an error if the thread is not found.
+	 * A no arg version of {@link #addThread(Class, int, int, Object...)}
+	 * 
+	 * @param threadClass
+	 * @param threadCount
+	 * @param targetFPS
+	 */
+	public void addThread(Class<? extends PThread> threadClass, int threadCount, int targetFPS) {
+		addThread(threadClass, threadCount, targetFPS, new Object[] {});
+	}
+
+	/**
+	 * Create threads using their belonging class and args. Add a thread from a
+	 * class -- the threadmanager will create threadCount instances of it.
+	 * 
+	 * @param threadClass
+	 * @param threadCount
+	 * @param targetFPS
+	 * @param args        varargs exlude PApplet.
+	 */
+	public void addThread(Class<? extends PThread> threadClass, int threadCount, int targetFPS, Object... args) {
+
+		if (threadCount < 1) {
+			throw new IllegalArgumentException("threadCount should be more than 0");
+		}
+
+		final Class<?>[] constructorTypes = new Class[args.length + 1];
+		constructorTypes[0] = PApplet.class;
+		final Object[] completeArgs = new Object[args.length + 1];
+		completeArgs[0] = p;
+
+		for (int i = 0; i < args.length; i++) {
+			completeArgs[i + 1] = args[i];
+			if (ClassUtils.isPrimitiveWrapper(args[i].getClass())) {
+				constructorTypes[i + 1] = ClassUtils.wrapperToPrimitive(args[i].getClass()); // TODO stable?
+			} else {
+				constructorTypes[i + 1] = args[i].getClass();
+			}
+		}
+
+		try {
+			Constructor<? extends PThread> constructor = threadClass.getDeclaredConstructor(constructorTypes);
+			for (int i = 0; i < threadCount; i++) {
+				PThread thread = constructor.newInstance(completeArgs);
+				scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
+				threads.add(thread);
+			}
+		} catch (NoSuchMethodException e) {
+			System.err.println(
+					"NoSuchMethodException. If there are non-primitive arguments (i.e. Integer, not int) in your thread class constructor, then this is the cause. Otherwise, the args you specified do not match a constructor from the class.");
+			e.printStackTrace();
+		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | SecurityException
+				| InstantiationException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	/**
+	 * Removes and terminates a given thread from the thread manager. This method
+	 * will not return an error if the thread is not found.
 	 * 
 	 * @param thread the thread to remove
 	 */
@@ -199,8 +265,33 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Stops and Doesn't clear threads from the buffer. Threads will continue to
-	 * render there
+	 * Pause a given thread or threads (varargs).
+	 * 
+	 * @param thread
+	 */
+	public void pauseThread(PThread... thread) {
+		if (threads.containsAll(threads)) {
+			// TODO
+		}
+	}
+
+	/**
+	 * Resume a given thread or threads (varargs).
+	 * 
+	 * @param thread
+	 */
+	public void resumeThread(PThread... thread) {
+		if (threads.containsAll(threads)) {
+			// TODO
+		}
+	}
+
+	/**
+	 * Pauses execution of all threads -- they will still be drawn to the screen in
+	 * their paused state. Stops and Doesn't clear threads from the buffer. Threads
+	 * will continue to render there
+	 * 
+	 * @see #resumeThreads()
 	 */
 	public void pauseThreads() {
 		scheduler.shutdown();
@@ -242,16 +333,9 @@ public class PThreadManager {
 	}
 
 	/**
-	 * reset/restart the state of threads (remakes them).
-	 */
-	public void reset() {
-		// TODO
-	}
-
-	/**
-	 * Draw the threads' PGraphics.
-	 * 
-	 * @see #bindDraw()
+	 * Draws the threads' PGraphics into the parent PApplet. This method should be
+	 * called within the parent PApplet's draw() loop. Alternatively, see
+	 * {@link #bindDraw()}.
 	 */
 	public void draw() {
 		threads.forEach(t -> {
@@ -260,23 +344,13 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Return a thread (class instance) possibly to allow manual setting of params.
-	 * Wpuld have to be cast by user
-	 * 
-	 * @return
-	 */
-	public PThread getThread() { // TODO
-		return threads.get(0);
-	}
-
-	/**
-	 * Advanced: By default, a PThread's draw() and calc() are called sequentially.
-	 * What if When this function is enabled, all threads' calc() is called as part
-	 * of {@link #draw()}, not in the thread themselves -- so draw--intensive
-	 * sketches (threads) will not slow down the speed.
+	 * Advanced: By default, a each thread's draw() and calc() are called
+	 * sequentially. What if When this function is enabled, all threads' calc() is
+	 * called as part of {@link #draw()}, not in the thread themselves -- so
+	 * draw--intensive sketches (threads) will not slow down the speed.
 	 */
 	public void unlinkComputeDraw() {
-		// TODO change flag
+		// TODO
 	}
 
 	/**
@@ -289,11 +363,15 @@ public class PThreadManager {
 	}
 
 	/**
-	 * First enables timing collection for each thread.
+	 * First enables timing collection for each thread, then returns the average
+	 * draw
 	 * 
-	 * <p>[1000/{@link #getAverageDrawTime()}] returns FPS.<p>
+	 * <p>
+	 * [1000/{@link #getAverageDrawTime()}] returns FPS.
+	 * <p>
 	 * 
-	 * @return
+	 * @return mean draw() time of all threads (milliseconds).
+	 * @see #getAverageCalcTime()
 	 */
 	public float getAverageDrawTime() {
 		if (!threads.isEmpty()) {
@@ -306,7 +384,8 @@ public class PThreadManager {
 
 	/**
 	 * 
-	 * @return
+	 * @return mean calc() time of all threads (milliseconds).
+	 * @see #getAverageDrawTime()
 	 */
 	public float getAverageCalcTime() {
 		if (!threads.isEmpty()) {
@@ -321,7 +400,7 @@ public class PThreadManager {
 	 * Is the thread manager running any threads? If {@link #pauseThreads()} has
 	 * been called, this method will return false.
 	 * 
-	 * @return
+	 * @return running status
 	 */
 	public boolean isRunning() {
 		return live;
@@ -329,7 +408,8 @@ public class PThreadManager {
 
 	/**
 	 * This method is bound to the PApplet, so that the threads are terminated
-	 * properly when the sketch is closed. You do not need to call it manually.
+	 * properly when the sketch is closed. <b>You do not need to call it
+	 * manually</b>.
 	 */
 	public void dispose() {
 		scheduler.shutdown();
@@ -339,7 +419,8 @@ public class PThreadManager {
 	 * Binds the {@link #draw()} method of this thread manager to the end of the
 	 * draw method of the parent PApplet, so you don't need to manually include a
 	 * call to {@link #draw() myManger.draw()} in the PApplet's draw() method. By
-	 * default,
+	 * default, the thread manager is not bound to the parent PApplet -- this method
+	 * must be called to set it up.
 	 * 
 	 * @see #unBindDraw()
 	 */
@@ -351,8 +432,9 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Binds the {@link #draw()} method of this thread manager (this is the default
-	 * behaviour).
+	 * Unbinds the {@link #draw()} method of this thread manager from the end of the
+	 * draw method of the parent PApplet, so {@link #draw()} must be called
+	 * manually.
 	 * 
 	 * @see #bindDraw()
 	 */
