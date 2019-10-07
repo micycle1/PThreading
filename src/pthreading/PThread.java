@@ -4,11 +4,12 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 
 /**
- * PThread. Extend this class, overriding the {@link #calc()} and
- * {@link #draw()} methods with your own code.
+ * Extend this class, overriding the {@link #calc()} and {@link #draw()} methods
+ * with your own code, then use a {@link pthreading.PThreadManager
+ * PThreadManager} to run the thread.
  * 
  * <p>
- * Prefix every call to a Processing draw method with g(raphics) -- for example:
+ * Prefix every call to a Processing draw method with g -- for example:
  * <i>g.rect(10,10,10,10);</i>
  * <p>
  * 
@@ -24,10 +25,10 @@ public abstract class PThread {
 
 	private boolean timing = false;
 
-	protected long calcTime, drawTime;
+	long calcTime, drawTime;
 
 	/**
-	 * The PGraphics object the thread should draw into.
+	 * The PGraphics object the thread draws into.
 	 */
 	protected PGraphics g;
 
@@ -37,11 +38,7 @@ public abstract class PThread {
 	 */
 	protected final PApplet p;
 
-	/**
-	 * Exposed in {@link #PThread(PApplet) PThread} so that you can refer to of the
-	 * parent PApplet (like mouseX, or ) in your code.
-	 */
-	Runnable r;
+	final Runnable r, noCalc;
 
 	/**
 	 * Constructs a thread.
@@ -68,6 +65,21 @@ public abstract class PThread {
 					drawTime = (t3 - t2);
 				} else {
 					calc();
+					draw();
+				}
+				g.endDraw();
+			}
+		};
+		noCalc = new Runnable() {
+			public void run() {
+				g.beginDraw();
+				g.clear();
+				if (timing) {
+					final long t2 = System.nanoTime();
+					draw();
+					final long t3 = System.nanoTime();
+					drawTime = (t3 - t2);
+				} else {
 					draw();
 				}
 				g.endDraw();

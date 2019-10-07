@@ -1,29 +1,30 @@
 package pthreading;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import javax.swing.Timer;
 
 import org.apache.commons.lang3.ClassUtils;
 
 import processing.core.PApplet;
 
 /**
- * TODO can't add same thread twice? This is what threads the classes.
- * hashmap of thread to fps and running instance
- * 
+ * Runs and manages {@link pthreading.PThread PThreads}.
  * <p>
  * There are a few different constructors split into two types: pass instances
  * of your class that extends a {@link pthreading.PThread PThread}; or pass the
  * class & number of threads and the thread manager will create 'threads' number
- * of instances
+ * of instances internally.
  * 
  * {@link #draw()} is the most important method
  * 
@@ -36,30 +37,65 @@ public class PThreadManager {
 	private static final int DEFAULT_FPS = 60;
 
 	private final PApplet p;
-	private boolean live;
 	private final int targetFPS;
-	private ScheduledExecutorService scheduler;
-//	private final ArrayList<PThread> threads;
-	private final HashSet<PThread> threads;
-	private HashMap<PThread, ScheduledFuture<?>> threads2;
+	private final ScheduledExecutorService scheduler;
+	private final HashMap<PThread, ScheduledFuture<?>> threads;
+	private final HashMap<PThread, Integer> threadFPS;
 	private boolean boundToParent = false;
+	private boolean unlinkComputeDraw = false;
 
 	/**
-	 * NO class ARGS
+	 * Constructs a new (empty) thread manager. The simplest constructor.
 	 * 
-	 * @param p
-	 * @param targetFPS
-	 * @param threadCount
-	 * @param threadClass
+	 * @param p parent PApplet
 	 */
-	public PThreadManager(PApplet p, int targetFPS, int threadCount, Class<? extends PThread> threadClass) {
+	public PThreadManager(PApplet p) {
+		this.p = p;
+		threads = new HashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new HashMap<PThread, Integer>();
+		this.targetFPS = DEFAULT_FPS;
+		scheduler = Executors.newScheduledThreadPool(50);
+		p.registerMethod("dispose", this);
+	}
+
+	/**
+	 * Constructs a new (empty) thread manager and specifies the default FPS for
+	 * threads. When a given thread is added to the manager and a per-thread FPS is
+	 * not specified, the new thread will target the FPS as given in this
+	 * constructor.
+	 * 
+	 * @param p         parent PApplet
+	 * @param targetFPS default FPS for new threads (when not specified otherwise).
+	 */
+	public PThreadManager(PApplet p, int targetFPS) {
+		this.p = p;
+		threads = new HashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new HashMap<PThread, Integer>();
+		this.targetFPS = targetFPS;
+		scheduler = Executors.newScheduledThreadPool(50);
+		p.registerMethod("dispose", this);
+	}
+
+	/**
+	 * Constructs a thread manager using a thread class, so that thread instances
+	 * are created upon manager instantiation.
+	 * 
+	 * @param p           parent PApplet
+	 * @param threadClass thread (with no arguments)
+	 * @param threadCount
+	 * @param targetFPS   default FPS for new threads (when not specified
+	 *                    otherwise).
+	 * @see #PThreadManager(PApplet, Class, int, int, Object...)
+	 */
+	public PThreadManager(PApplet p, Class<? extends PThread> threadClass, int threadCount, int targetFPS) {
 
 		if (threadCount < 1) {
 			throw new IllegalArgumentException("threadCount should be more than 0");
 		}
 
 		this.p = p;
-		threads = new HashSet<PThread>();
+		threads = new HashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new HashMap<PThread, Integer>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
@@ -68,29 +104,31 @@ public class PThreadManager {
 			Constructor<? extends PThread> constructor = threadClass.getDeclaredConstructor(PApplet.class); // todo
 			for (int i = 0; i < threadCount; i++) {
 				PThread thread = constructor.newInstance(p);
-				scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-				threads.add(thread);
+				ScheduledFuture<?> scheduledRunnable = scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS,
+						TimeUnit.MICROSECONDS);
+				threads.put(thread, scheduledRunnable);
 			}
 		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
 				| NoSuchMethodException | SecurityException e) {
 			e.printStackTrace();
 		}
-		live = true;
 	}
 
 	/**
 	 * Construct a thread manager of a given class
+	 * {@link #PThreadManager(PApplet, Class, int, int)}, but you specify arguments
 	 * 
 	 * @param p
-	 * @param targetFPS
-	 * @param threadCount
 	 * @param threadClass The thread class you have extended. It should extend the
 	 *                    {@link proThread.PThread PThread} class;
+	 * @param threadCount
+	 * @param targetFPS
 	 * @param args        Args to pass in (all threads will be constructed with the
 	 *                    same args) -- don't include the PApplet, only your
 	 *                    additional args.
+	 * @see #PThreadManager(PApplet, Class, int, int)
 	 */
-	public PThreadManager(PApplet p, int targetFPS, int threadCount, Class<? extends PThread> threadClass,
+	public PThreadManager(PApplet p, Class<? extends PThread> threadClass, int threadCount, int targetFPS,
 			Object... args) {
 
 		if (threadCount < 1) {
@@ -98,7 +136,8 @@ public class PThreadManager {
 		}
 
 		this.p = p;
-		threads = new HashSet<PThread>();
+		threads = new HashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new HashMap<PThread, Integer>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
@@ -121,8 +160,9 @@ public class PThreadManager {
 			Constructor<? extends PThread> constructor = threadClass.getDeclaredConstructor(constructorTypes);
 			for (int i = 0; i < threadCount; i++) {
 				PThread thread = constructor.newInstance(completeArgs);
-				scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-				threads.add(thread);
+				ScheduledFuture<?> scheduledRunnable = scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS,
+						TimeUnit.MICROSECONDS);
+				threads.put(thread, scheduledRunnable);
 			}
 
 		} catch (NoSuchMethodException e) {
@@ -133,43 +173,12 @@ public class PThreadManager {
 				| SecurityException e) {
 			e.printStackTrace();
 		}
-		live = true;
 	}
 
 	/**
-	 * No FPS, use defautk fps
-	 * 
-	 * @param p
-	 */
-	public PThreadManager(PApplet p) {
-		this.p = p;
-		threads = new HashSet<PThread>();
-		this.targetFPS = DEFAULT_FPS;
-		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
-		p.registerMethod("dispose", this);
-		live = false;
-	}
-
-	/**
-	 * empty thread manager; user must add instances. Use #createNewThread to add
-	 * threads. Specify an FPS; if not, then specifiy per-thread; if not that, then
-	 * will use default (60)
-	 * 
-	 * @param p
-	 * @param targetFPS
-	 */
-	public PThreadManager(PApplet p, int targetFPS) {
-		this.p = p;
-		threads = new HashSet<PThread>();
-		this.targetFPS = targetFPS;
-		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
-		p.registerMethod("dispose", this);
-		live = false;
-	}
-
-	/**
-	 * Add a new thread. Inherits the . Create a new thread from an instantiated
-	 * PThread object. Runs immediately.
+	 * Adds a new thread to the manager and runs it. Inherits the targetFPS of this
+	 * thread manager. Create a new thread from an instantiated PThread object. Runs
+	 * immediately.
 	 * 
 	 * Optional if you used first 2 constructors; necessary if you used
 	 * {@link #PThreadManager(PApplet, int) this} one.
@@ -179,11 +188,9 @@ public class PThreadManager {
 	 * @see #addThread(PThread, int)
 	 */
 	public void addThread(PThread thread) {
-		threads.add(thread);
-		scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-//		ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-//		scheduledFuture.cancel(true);
-		live = true;
+		if (!threads.containsKey(thread)) {
+			addRunnable(thread);
+		}
 	}
 
 	/**
@@ -194,11 +201,18 @@ public class PThreadManager {
 	 * @see #addThread(PThread)
 	 */
 	public void addThread(PThread thread, int targetFPS) {
-		threads.add(thread);
-		scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-		live = true;
+		if (!threads.containsKey(thread)) {
+			threadFPS.put(thread, targetFPS);
+			addRunnable(thread);
+		}
 	}
 
+	/**
+	 * TODO
+	 * 
+	 * @param threadClass
+	 * @param threadCount
+	 */
 	public void addThread(Class<? extends PThread> threadClass, int threadCount) {
 		addThread(threadClass, threadCount, targetFPS, new Object[] {});
 	}
@@ -247,8 +261,8 @@ public class PThreadManager {
 			Constructor<? extends PThread> constructor = threadClass.getDeclaredConstructor(constructorTypes);
 			for (int i = 0; i < threadCount; i++) {
 				PThread thread = constructor.newInstance(completeArgs);
-				scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-				threads.add(thread);
+				threadFPS.put(thread, targetFPS);
+				addRunnable(thread);
 			}
 		} catch (NoSuchMethodException e) {
 			System.err.println(
@@ -258,48 +272,39 @@ public class PThreadManager {
 				| InstantiationException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	/**
-	 * Removes and terminates a given thread from the thread manager. This method
-	 * will not return an error if the thread is not found.
+	 * Pause a given thread or threads (varargs).
 	 * 
-	 * @param thread the thread to remove
+	 * @param The thread (or threads) to pause
+	 * @see #pauseAndClearThread(PThread...)
 	 */
-	public void removeThread(PThread thread) {
-		pauseThreads();
-		threads.remove(thread);
-		resumeThreads();
+	public void pauseThread(PThread... thread) {
+		ArrayList<PThread> pauseThreads = new ArrayList<PThread>(Arrays.asList(thread));
+		if (threads.keySet().containsAll(pauseThreads)) {
+			pauseThreads.forEach(t -> threads.get(t).cancel(true));
+		}
 	}
 
 	/**
 	 * Pause a given thread or threads (varargs).
 	 * 
 	 * @param thread(s) to pause
+	 * @see #pauseThread(PThread...)
 	 */
-	public void pauseThread(PThread... thread) {
-		@SuppressWarnings("unchecked")
-		HashSet<PThread> keep = (HashSet<PThread>) threads.clone();
-		keep.removeAll(new ArrayList<PThread>(Arrays.asList(thread)));
-		
-//		threads.forEach(t -> t.clearPGraphics());
-		scheduler.shutdown();
-		scheduler = Executors.newScheduledThreadPool(threads.size());
-		
-		keep.forEach(t -> {
-			scheduler.scheduleAtFixedRate(t.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-		});
-	}
-
-	/**
-	 * Resume a given thread or threads (varargs).
-	 * 
-	 * @param thread
-	 */
-	public void resumeThread(PThread... thread) {
-		if (threads.containsAll(threads)) {
-			// TODO
+	public void pauseAndClearThread(PThread... thread) {
+		ArrayList<PThread> pauseThreads = new ArrayList<PThread>(Arrays.asList(thread));
+		if (threads.keySet().containsAll(pauseThreads)) {
+			pauseThreads.forEach(t -> threads.get(t).cancel(true));
+			Timer timer = new Timer(20, new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					pauseThreads.forEach(t -> t.clearPGraphics());
+				}
+			});
+			timer.setRepeats(false);
+			timer.start();
 		}
 	}
 
@@ -309,71 +314,121 @@ public class PThreadManager {
 	 * will continue to render there
 	 * 
 	 * @see #resumeThreads()
+	 * @see #pauseAndClearThreads()
 	 */
 	public void pauseThreads() {
-		scheduler.shutdown();
-		scheduler = Executors.newScheduledThreadPool(threads.size());
-		live = false;
+		threads.values().forEach(runnable -> runnable.cancel(true));
 	}
 
 	/**
-	 * Stops threads -- cannot be resumed, effectively resetting the thread manager.
+	 * Pauses threads and hides from them being drawn.
 	 */
 	public void pauseAndClearThreads() {
-		threads.forEach(thread -> thread.clearPGraphics());
-		scheduler.shutdown();
-		scheduler = Executors.newScheduledThreadPool(threads.size());
-		live = false;
+		threads.values().forEach(runnable -> runnable.cancel(true));
+		Timer timer = new Timer(20, new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				threads.keySet().forEach(thread -> thread.clearPGraphics());
+			}
+		});
+		timer.setRepeats(false);
+		timer.start();
 	}
 
 	/**
-	 * Resume
+	 * Resumes a given thread or threads (varargs).
+	 * 
+	 * @param thread The thread (or threads) to resume
 	 */
-	public void resumeThreads() {
-		if (!live) {
-			threads.forEach(thread -> {
-				scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
-			});
-			live = true;
+	public void resumeThread(PThread... thread) {
+		ArrayList<PThread> resumeThreads = new ArrayList<PThread>(Arrays.asList(thread));
+		if (threads.keySet().containsAll(resumeThreads)) {
+			for (PThread pThread : resumeThreads) {
+				if (threads.get(pThread).isCancelled()) {
+					addRunnable(pThread);
+				}
+			}
 		}
 	}
 
 	/**
-	 * Stops any existing threads and clears the internal buffer (can't be resumed).
-	 * 
-	 * @see #reset()
+	 * Resumes any paused threads.
 	 */
-	public void flush() {
-		scheduler.shutdown();
-		scheduler = Executors.newScheduledThreadPool(threads.size());
-		threads.clear(); // important
+	public void resumeThreads() {
+		for (PThread thread : threads.keySet()) {
+			if (threads.get(thread).isCancelled()) {
+				addRunnable(thread);
+			}
+		}
+	}
+
+	/**
+	 * Stops a given thread or threads (varargs) and removes it from the thread
+	 * manager (cannot be resumed).
+	 * 
+	 * @param thread The thread (or threads) to stop
+	 */
+	public void stopThread(PThread... thread) {
+		ArrayList<PThread> stopThreads = new ArrayList<PThread>(Arrays.asList(thread));
+		if (threads.keySet().containsAll(stopThreads)) {
+			stopThreads.forEach(t -> threads.get(t).cancel(true));
+			stopThreads.forEach(t -> threads.remove(t));
+			stopThreads.forEach(t -> threadFPS.remove(t));
+		}
+	}
+
+	/**
+	 * Stops all threads (even if they are paused) and removes them from the thread
+	 * manager, effectively resetting the thread manager.
+	 */
+	public void stopThreads() {
+		threads.values().forEach(runnable -> runnable.cancel(true));
+		threads.clear();
+		threadFPS.clear();
 	}
 
 	/**
 	 * Draws the threads' PGraphics into the parent PApplet. This method should be
-	 * called within the parent PApplet's draw() loop; alternatively, see
+	 * called within the parent PApplet's draw() loop -- alternatively, see
 	 * {@link #bindDraw()}.
 	 */
 	public void draw() {
-		threads.forEach(t -> {
+		if (unlinkComputeDraw) {
+			threads.keySet().forEach(thread -> thread.calc());
+		}
+		threads.keySet().forEach(t -> {
 			p.image(t.g, 0, 0);
 		});
 	}
 
 	/**
-	 * Advanced: By default, a each thread's draw() and calc() are called
-	 * sequentially. What if When this function is enabled, all threads' calc() is
-	 * called as part of {@link #draw()}, not in the thread themselves -- so
-	 * draw--intensive sketches (threads) will not slow down the speed.
+	 * Advanced: By default, each thread's draw() and calc() methods are called
+	 * sequentially within a thread. What if a given thread is severely draw-call
+	 * bound? When this function is called, all threads' (both existing and future)
+	 * <i>calc()</i> method is called during thread manager's {@link #draw()} method and not within the threads
+	 * -- so draw--intensive sketches (threads) will not slow down the speed of a
+	 * thread.
 	 */
 	public void unlinkComputeDraw() {
-		// TODO
+		if (!unlinkComputeDraw) {
+			unlinkComputeDraw = true;
+			threads.values().forEach(runnable -> runnable.cancel(true));
+			for (PThread thread : threads.keySet()) {
+				ScheduledFuture<?> scheduledRunnable = scheduler.scheduleAtFixedRate(thread.noCalc, 0,
+						1000000 / targetFPS, TimeUnit.MICROSECONDS); // TODO get thread's FPS
+				if (threads.get(thread).isCancelled()) {
+					scheduledRunnable.cancel(true);
+				}
+				threads.put(thread, scheduledRunnable);
+			}
+		}
 	}
 
 	/**
-	 * Retuns the count of the threads in the buffer.
+	 * Retuns the count of the threads (both paused and running) managed by this
+	 * thread manager.
 	 * 
-	 * @return
+	 * @return thread count
 	 */
 	public int getThreadCount() {
 		return threads.size();
@@ -392,8 +447,8 @@ public class PThreadManager {
 	 */
 	public float getAverageDrawTime() {
 		if (!threads.isEmpty()) {
-			threads.forEach(thread -> thread.enableTiming());
-			return (float) threads.stream().mapToDouble(thread -> thread.drawTime).sum() / threads.size();
+			threads.keySet().forEach(thread -> thread.enableTiming());
+			return (float) threads.keySet().stream().mapToDouble(thread -> thread.drawTime).sum() / threads.size();
 		} else {
 			return 0;
 		}
@@ -406,8 +461,8 @@ public class PThreadManager {
 	 */
 	public float getAverageCalcTime() {
 		if (!threads.isEmpty()) {
-			threads.forEach(thread -> thread.enableTiming());
-			return (float) threads.stream().mapToDouble(thread -> thread.calcTime).sum() / threads.size();
+			threads.keySet().forEach(thread -> thread.enableTiming());
+			return (float) threads.keySet().stream().mapToDouble(thread -> thread.calcTime).sum() / threads.size();
 		} else {
 			return 0;
 		}
@@ -420,16 +475,12 @@ public class PThreadManager {
 	 * @return running status
 	 */
 	public boolean isRunning() {
-		return live;
-	}
-
-	/**
-	 * This method is bound to the PApplet, so that the threads are terminated
-	 * properly when the sketch is closed. <b>You do not need to call it
-	 * manually</b>.
-	 */
-	public void dispose() {
-		scheduler.shutdown();
+		for (ScheduledFuture<?> runnable : threads.values()) {
+			if (!runnable.isCancelled()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -459,5 +510,33 @@ public class PThreadManager {
 		if (boundToParent) {
 			p.unregisterMethod("draw", this);
 		}
+	}
+
+	/**
+	 * This method is bound to the parent PApplet, so that the threads are
+	 * terminated properly when the sketch is closed. <b>You do not need to call
+	 * this method manually</b>.
+	 */
+	public void dispose() {
+		scheduler.shutdown();
+	}
+
+	/**
+	 * Create a runnable for the given thread.
+	 * 
+	 * @param thread
+	 */
+	private void addRunnable(PThread thread) {
+		ScheduledFuture<?> scheduledRunnable;
+		if (unlinkComputeDraw) {
+			scheduledRunnable = scheduler.scheduleAtFixedRate(thread.noCalc, 0,
+					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : DEFAULT_FPS),
+					TimeUnit.MICROSECONDS);
+		} else {
+			scheduledRunnable = scheduler.scheduleAtFixedRate(thread.r, 0,
+					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : DEFAULT_FPS),
+					TimeUnit.MICROSECONDS);
+		}
+		threads.put(thread, scheduledRunnable);
 	}
 }
