@@ -3,8 +3,12 @@ package pthreading;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.ClassUtils;
@@ -13,6 +17,7 @@ import processing.core.PApplet;
 
 /**
  * TODO can't add same thread twice? This is what threads the classes.
+ * hashmap of thread to fps and running instance
  * 
  * <p>
  * There are a few different constructors split into two types: pass instances
@@ -34,7 +39,9 @@ public class PThreadManager {
 	private boolean live;
 	private final int targetFPS;
 	private ScheduledExecutorService scheduler;
-	private final ArrayList<PThread> threads;
+//	private final ArrayList<PThread> threads;
+	private final HashSet<PThread> threads;
+	private HashMap<PThread, ScheduledFuture<?>> threads2;
 	private boolean boundToParent = false;
 
 	/**
@@ -52,7 +59,7 @@ public class PThreadManager {
 		}
 
 		this.p = p;
-		threads = new ArrayList<PThread>();
+		threads = new HashSet<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
@@ -91,7 +98,7 @@ public class PThreadManager {
 		}
 
 		this.p = p;
-		threads = new ArrayList<PThread>();
+		threads = new HashSet<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
@@ -136,7 +143,7 @@ public class PThreadManager {
 	 */
 	public PThreadManager(PApplet p) {
 		this.p = p;
-		threads = new ArrayList<PThread>();
+		threads = new HashSet<PThread>();
 		this.targetFPS = DEFAULT_FPS;
 		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
 		p.registerMethod("dispose", this);
@@ -153,7 +160,7 @@ public class PThreadManager {
 	 */
 	public PThreadManager(PApplet p, int targetFPS) {
 		this.p = p;
-		threads = new ArrayList<PThread>();
+		threads = new HashSet<PThread>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(50); // TODO 50
 		p.registerMethod("dispose", this);
@@ -174,6 +181,8 @@ public class PThreadManager {
 	public void addThread(PThread thread) {
 		threads.add(thread);
 		scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
+//		ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(thread.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
+//		scheduledFuture.cancel(true);
 		live = true;
 	}
 
@@ -267,12 +276,20 @@ public class PThreadManager {
 	/**
 	 * Pause a given thread or threads (varargs).
 	 * 
-	 * @param thread
+	 * @param thread(s) to pause
 	 */
 	public void pauseThread(PThread... thread) {
-		if (threads.containsAll(threads)) {
-			// TODO
-		}
+		@SuppressWarnings("unchecked")
+		HashSet<PThread> keep = (HashSet<PThread>) threads.clone();
+		keep.removeAll(new ArrayList<PThread>(Arrays.asList(thread)));
+		
+//		threads.forEach(t -> t.clearPGraphics());
+		scheduler.shutdown();
+		scheduler = Executors.newScheduledThreadPool(threads.size());
+		
+		keep.forEach(t -> {
+			scheduler.scheduleAtFixedRate(t.r, 0, 1000000 / targetFPS, TimeUnit.MICROSECONDS);
+		});
 	}
 
 	/**
@@ -334,12 +351,12 @@ public class PThreadManager {
 
 	/**
 	 * Draws the threads' PGraphics into the parent PApplet. This method should be
-	 * called within the parent PApplet's draw() loop. Alternatively, see
+	 * called within the parent PApplet's draw() loop; alternatively, see
 	 * {@link #bindDraw()}.
 	 */
 	public void draw() {
 		threads.forEach(t -> {
-			p.image(t.pthread, 0, 0);
+			p.image(t.g, 0, 0);
 		});
 	}
 

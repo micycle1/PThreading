@@ -8,12 +8,12 @@ import processing.core.PGraphics;
  * {@link #draw()} methods with your own code.
  * 
  * <p>
- * Prefix every call to a Processing draw method with pthread -- for example:
- * <i>pthread.rect(10,10,10,10);</i>
+ * Prefix every call to a Processing draw method with g(raphics) -- for example:
+ * <i>g.rect(10,10,10,10);</i>
  * <p>
  * 
  * <p>
- * Refer to any PApplet variable by prefixing it with papplet -- for example:
+ * Refer to any PApplet variable by prefixing it with p -- for example:
  * <i>p.mousePressed</i>
  * <p/>
  * 
@@ -29,13 +29,13 @@ public abstract class PThread {
 	/**
 	 * The PGraphics object the thread should draw into.
 	 */
-	protected PGraphics pthread;
+	protected PGraphics g;
 
 	/**
 	 * Exposed so that any subclasses can access PApplet variables (such as mouse
 	 * coords).
 	 */
-	protected final PApplet papplet;
+	protected final PApplet p;
 
 	/**
 	 * Exposed in {@link #PThread(PApplet) PThread} so that you can refer to of the
@@ -52,12 +52,12 @@ public abstract class PThread {
 	 * @param p Parent PApplet
 	 */
 	public PThread(PApplet p) {
-		this.papplet = p;
-		pthread = p.createGraphics(p.width, p.height);
+		this.p = p;
+		g = p.createGraphics(p.width, p.height);
 		r = new Runnable() {
 			public void run() {
-				pthread.beginDraw();
-				pthread.clear();
+				g.beginDraw();
+				g.clear();
 				if (timing) {
 					final long t1 = System.nanoTime();
 					calc();
@@ -70,7 +70,7 @@ public abstract class PThread {
 					calc();
 					draw();
 				}
-				pthread.endDraw();
+				g.endDraw();
 			}
 		};
 	}
@@ -101,9 +101,9 @@ public abstract class PThread {
 	}
 
 	void clearPGraphics() {
-		pthread.beginDraw();
-		pthread.clear();
-		pthread.endDraw();
+		g.beginDraw();
+		g.clear();
+		g.endDraw();
 	}
 
 	/**
