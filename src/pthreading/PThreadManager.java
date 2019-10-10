@@ -394,33 +394,51 @@ public class PThreadManager {
 	 */
 	public void draw() {
 		if (unlinkComputeDraw) {
-			threads.keySet().forEach(thread -> thread.calc());
+			threads.forEach((thread, value) -> {
+				if (!value.isCancelled()) {
+					thread.calc();
+				}
+				p.image(thread.g, 0, 0);
+			});
+		} else {
+			threads.keySet().forEach(t -> {
+				p.image(t.g, 0, 0);
+			});
 		}
-		threads.keySet().forEach(t -> {
-			p.image(t.g, 0, 0);
-		});
 	}
 
 	/**
 	 * Advanced: By default, each thread's draw() and calc() methods are called
-	 * sequentially within a thread. What if a given thread is severely draw-call
+	 * sequentially within the thread. What if a given thread is severely draw-call
 	 * bound? When this function is called, all threads' (both existing and future)
-	 * <i>calc()</i> method is called during thread manager's {@link #draw()} method and not within the threads
-	 * -- so draw--intensive sketches (threads) will not slow down the speed of a
-	 * thread.
+	 * <i>calc()</i> method will be called as part of the thread manager's
+	 * {@link #draw()} method and not within the threads: draw--intensive sketches
+	 * (threads) will not slow down the speed of a thread.
 	 */
 	public void unlinkComputeDraw() {
 		if (!unlinkComputeDraw) {
 			unlinkComputeDraw = true;
-			threads.values().forEach(runnable -> runnable.cancel(true));
-			for (PThread thread : threads.keySet()) {
-				ScheduledFuture<?> scheduledRunnable = scheduler.scheduleAtFixedRate(thread.noCalc, 0,
-						1000000 / targetFPS, TimeUnit.MICROSECONDS); // TODO get thread's FPS
-				if (threads.get(thread).isCancelled()) {
-					scheduledRunnable.cancel(true);
+			threads.forEach((thread, value) -> {
+				if (!value.isCancelled()) {
+					threads.get(thread).cancel(true);
+					addRunnable(thread);
 				}
-				threads.put(thread, scheduledRunnable);
-			}
+			});	
+		}
+	}
+	
+	/**
+	 * @see #unlinkComputeDraw()
+	 */
+	public void relinkComputeDraw() {
+		if (unlinkComputeDraw) {
+			unlinkComputeDraw = false;
+			threads.forEach((thread, value) -> {
+				if (!value.isCancelled()) {
+					threads.get(thread).cancel(true);
+					addRunnable(thread);
+				}
+			});	
 		}
 	}
 
