@@ -1,5 +1,5 @@
 # PThreading
-A simple multithreaded framework for Processing.
+PThreading: A simple multithreaded framework for Processing.
 
 ---
 
@@ -15,26 +15,26 @@ Processing does indeed provide a quick and dirty way to implement a simple threa
 
 ... leaving *thread()* suitable only for CPU-bound sketches, at best. 
 
-PThreading provides a way to do multithreaded drawing -- not just calculation -- in Processing, and does so in an easy-to-use and well-synchronized manner. It exploits the fact that PGraphics objects can be drawn into safely from other threads.
+In contrast, PThreading provides a way to do multithreaded drawing -- not just calculation -- and does so in an easy-to-use and well-synchronized manner. It exploits the fact that PGraphics objects can be drawn into safely from other threads.
 
 ## Setup
 
-First download *pthreading.jar* from [releases](https://github.com/micycle1/PThreading/releases).
+Download *pthreading.jar* from [releases](https://github.com/micycle1/PThreading/releases).
 
-### In the Processing IDE (PDE)
+#### In the Processing IDE (PDE):
 
-Drag & drop *pthreading.jar* onto the PDE, or see the Processing [wiki](https://github.com/processing/processing/wiki/How-to-Install-a-Contributed-Library#non-processing-libraries) on how to add an external library to a Processing sketch.
+* Drag & drop *pthreading.jar* onto the PDE, or see the Processing [wiki](https://github.com/processing/processing/wiki/How-to-Install-a-Contributed-Library#non-processing-libraries) on how to add an external library to a Processing sketch.
 
-### In other Java IDEs
-Add pthreading.jar to the classpath of your project.
+#### In other Java IDEs:
+* Add pthreading.jar to the classpath of your project.
 
 ## Getting Started
 
-*The Javadoc is available online [here](https://micycle1.github.io/PThreading/pthreading/package-summary.html) -- every method and class is thoroughly documented.*
+*The Javadoc is available [online](https://micycle1.github.io/PThreading/pthreading/package-summary.html) -- here, every method and class is thoroughly documented.*
 
 ### 1. Extending PThread
 
-Create a new class that extends PThread. You will have to override the PThread's *draw()* method. Here, put code you wish to be executted 
+Create a new class that extends PThread. You have to override the PThread's *draw()* method; overriding *calc* is optional. In *draw()*, put code you wish to be executted 
 Put your code in draw(). A very simple example is shown below.
 
 #### PDE Example:
@@ -71,23 +71,42 @@ class myThread extends PThread {
   
   @Override
   public void draw(){
-    g.ellipse(p.mouseX + n, p.mouseY, 50, 50);
+    g.ellipse(p.mouseX + n, p.mouseY, 50, 50); // note mouseX and mouseY are prefixed with 'p.'
   }
   
 }
 ```
 
 **Important**: 
-* Prefix every call to a Processing draw method with g -- for example: *g.rect(10,10,10,10)*.
-* Prefix every call to a Processing variable with p -- for example: *p.mousePressed* (non-PDE environments only).
+* Prefix every call to a Processing draw method with g -- for example: *g.rect(10,10,10,10)* (relevant in all environments).
+* Prefix every call to a Processing variable with p -- for example: *p.mousePressed* (relevant in non-PDE environments only).
 
 ### 2. Creating a PThreadManager
+Create a thread manager and add threads to it. In all cases, adding a thread to a thread manager will run it immediately.
+A [variety](micycle1.github.io/PThreading/pthreading/PThreadManager.html) of constructors are available. In this example the most simple constructor has been chosen. You can add multiple types of threads to a single thread manager
 
 ```
 threadManager = new PThreadManager(this);
-myThread a = new myThread(this);
-threadManager.addThread(a);
+myThread a = new myThread(this, 50);
+myThread b = new myThread(this, -50);
+threadManager.addThread(a, b);
 ```
+
+### 3. Drawing threads
+After adding a thread to a thread manager it will run immediately; however this does not mean the thread will be drawn into the sketch. To do this, call `draw()` on the thread manager:
+
+```
+void draw() {
+  background(255);
+  threadManager.draw();
+}
+```
+
+Alternatively, you can call `threadManager.bindDraw()` once -- in `setup` for example -- to bind the `draw()` method of the thread manager to the end of the draw method of the sketch. After doing this, you no longer need to make a manual call to `threadManager.bindDraw()` to draw threads.
+
+---
+
+That's it: now `a` and `b` will run as threads, drawing into the sketch. See /examples for more sophisticated behaviour.
 
 ## Limitations
 Each thread uses the `Java2D` renderer, since this is the only renderer that allows PGraphics objects to be instantiated and drawn into from other threads. As a consequence you cannot **thread** `OPENGL` drawing, or any 3D draw functions -- note that you can still use the framework with a 3D sketch but any drawing with the PThreads is limited to 2D.
