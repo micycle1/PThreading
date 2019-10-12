@@ -21,14 +21,15 @@ import processing.core.PApplet;
 /**
  * Runs and manages {@link pthreading.PThread PThreads}.
  * <p>
- * There are a few different constructors split into two types: pass instances
- * of your class that extends a {@link pthreading.PThread PThread}; or pass the
- * class & number of threads and the thread manager will create 'threads' number
- * of instances internally.
+ * There are a number of different constructors. Some create empty managers; in
+ * others, the thread manager can be instantiated with a thread class-type from
+ * which the manager will create instances of the class during instantiation.
  * 
- * {@link #draw()} is the most important method
+ * <p>
+ * In all cases, adding a thread to a thread manager will run it immediately.
  * 
- * @see #draw() draw() -- important
+ * @see #draw()
+ * @see #addThread(PThread...)
  * @author micycle1
  *
  */
@@ -59,9 +60,9 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Constructs a new (empty) thread manager and specifies the default FPS for
-	 * threads. When a given thread is added to the manager and a per-thread FPS is
-	 * not specified, the new thread will target the FPS as given in this
+	 * Constructs a new (empty) thread manager with a user-specified default FPS for
+	 * new threads. When a given thread is added to the manager and a per-thread FPS
+	 * is not specified, the new thread will target the FPS as given in this
 	 * constructor.
 	 * 
 	 * @param p         parent PApplet
@@ -77,14 +78,15 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Constructs a thread manager using a thread class, so that thread instances
-	 * are created upon manager instantiation.
+	 * Constructs a thread manager and creates live thread instances from the given
+	 * thread class (using its constructor with no additional custom args).
+	 * <p>
+	 * Threads can still be added later using {@link #addThread(PThread...)}.
 	 * 
 	 * @param p           parent PApplet
 	 * @param threadClass thread (with no arguments)
-	 * @param threadCount
-	 * @param targetFPS   default FPS for new threads (when not specified
-	 *                    otherwise).
+	 * @param threadCount Number of threads of this class to spawn
+	 * @param targetFPS   FPS the threads should target
 	 * @see #PThreadManager(PApplet, Class, int, int, Object...)
 	 */
 	public PThreadManager(PApplet p, Class<? extends PThread> threadClass, int threadCount, int targetFPS) {
@@ -115,17 +117,20 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Construct a thread manager of a given class
-	 * {@link #PThreadManager(PApplet, Class, int, int)}, but you specify arguments
+	 * Constructs a thread manager and creates running thread instances from the
+	 * given thread class and given args (in contrast to
+	 * {@link #addThread(Class, int, int)} which does not support ags).
+	 * <p>
+	 * Threads can still be added later using {@link #addThread(PThread...)}.
 	 * 
-	 * @param p
-	 * @param threadClass The thread class you have extended. It should extend the
-	 *                    {@link proThread.PThread PThread} class;
-	 * @param threadCount
-	 * @param targetFPS
-	 * @param args        Args to pass in (all threads will be constructed with the
-	 *                    same args) -- don't include the PApplet, only your
-	 *                    additional args.
+	 * @param p           parent PApplet
+	 * @param threadClass A thread class you have created. It should extend the
+	 *                    {@link PThread} class.
+	 * @param threadCount Number of threads of this class to spawn
+	 * @param targetFPS   FPS the threads should target
+	 * @param args        Args to pass in to the newly created threads (all threads
+	 *                    will be constructed with the same args) -- don't include
+	 *                    the PApplet, only your additional args.
 	 * @see #PThreadManager(PApplet, Class, int, int)
 	 */
 	public PThreadManager(PApplet p, Class<? extends PThread> threadClass, int threadCount, int targetFPS,
@@ -176,29 +181,28 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Adds a new thread to the manager and runs it. Inherits the targetFPS of this
-	 * thread manager. Create a new thread from an instantiated PThread object. Runs
-	 * immediately.
+	 * Adds a new thread (from a {@link PThread} instance) to the manager and runs
+	 * it immediately. Since FPS is not specified, threads added using this method
+	 * inherit the targetFPS of the thread manager.
 	 * 
-	 * Optional if you used first 2 constructors; necessary if you used
-	 * {@link #PThreadManager(PApplet, int) this} one.
-	 * 
-	 * This thread will inheirit {@link #targetFPS target fps}.
-	 * 
+	 * @param thread Thread or threads (varargs) instances to add to the manager
 	 * @see #addThread(PThread, int)
 	 */
-	public void addThread(PThread thread) {
-		if (!threads.containsKey(thread)) {
-			addRunnable(thread);
-		}
+	public void addThread(PThread... thread) {
+		(Arrays.asList(thread)).forEach(t -> {
+			if (!threads.containsKey(t)) {
+				addRunnable(t);
+			}
+		});
 	}
 
 	/**
-	 * Create a new thread from an instantiated PThread object. Runs immediately.
+	 * Adds a new thread (from a {@link PThread} instance) with an associated
+	 * targetFPS to the manager, and runs it immediately.
 	 * 
-	 * User defines per-thread targetFPS (does not affect other threads).
-	 * 
-	 * @see #addThread(PThread)
+	 * @param thread    Thread instance to add to the manager
+	 * @param targetFPS Per-thread targetFPS (does not affect other threads)
+	 * @see #addThread(PThread...)
 	 */
 	public void addThread(PThread thread, int targetFPS) {
 		if (!threads.containsKey(thread)) {
@@ -208,34 +212,42 @@ public class PThreadManager {
 	}
 
 	/**
-	 * TODO
+	 * Adds a number of new threads to the manager using a class type (the class
+	 * should extend {@link PThread}).
 	 * 
-	 * @param threadClass
-	 * @param threadCount
+	 * @param threadClass A thread class you have created. It should extend the
+	 *                    {@link PThread} class.
+	 * @param threadCount Number of threads of this class to spawn
 	 */
 	public void addThread(Class<? extends PThread> threadClass, int threadCount) {
 		addThread(threadClass, threadCount, targetFPS, new Object[] {});
 	}
 
 	/**
-	 * A no arg version of {@link #addThread(Class, int, int, Object...)}
+	 * Adds a number of new threads to the manager using a class type (the class
+	 * should extend {@link PThread}). This method is a no-arg version of
+	 * {@link #addThread(Class, int, int, Object...)}.
 	 * 
-	 * @param threadClass
-	 * @param threadCount
-	 * @param targetFPS
+	 * @param threadClass A thread class you have created. It should extend the
+	 *                    {@link PThread} class.
+	 * @param threadCount Number of threads of this class to spawn
+	 * @param targetFPS   FPS the threads should target
 	 */
 	public void addThread(Class<? extends PThread> threadClass, int threadCount, int targetFPS) {
 		addThread(threadClass, threadCount, targetFPS, new Object[] {});
 	}
 
 	/**
-	 * Create threads using their belonging class and args. Add a thread from a
-	 * class -- the threadmanager will create threadCount instances of it.
+	 * Adds a number of new threads to the manager using a class type (the class
+	 * should extend {@link PThread}) and arguments.
 	 * 
-	 * @param threadClass
-	 * @param threadCount
-	 * @param targetFPS
-	 * @param args        varargs exlude PApplet.
+	 * @param threadClass A thread class you have created. It should extend the
+	 *                    {@link PThread} class.
+	 * @param threadCount The number of threads of this class to spawn
+	 * @param targetFPS   FPS the threads should target
+	 * @param args        Args to pass in to the newly created threads (all threads
+	 *                    will be constructed with the same args) -- don't include
+	 *                    the PApplet, only your additional args.
 	 */
 	public void addThread(Class<? extends PThread> threadClass, int threadCount, int targetFPS, Object... args) {
 
@@ -275,10 +287,13 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Pause a given thread or threads (varargs).
+	 * Pause a given thread or threads (varargs). Note that paused threads will
+	 * continue to be drawn in their paused state.
 	 * 
-	 * @param The thread (or threads) to pause
+	 * @param thread The thread (or threads) to pause
 	 * @see #pauseAndClearThread(PThread...)
+	 * @see #pauseThreads()
+	 * @see #resumeThread(PThread...)
 	 */
 	public void pauseThread(PThread... thread) {
 		ArrayList<PThread> pauseThreads = new ArrayList<PThread>(Arrays.asList(thread));
@@ -288,10 +303,13 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Pause a given thread or threads (varargs).
+	 * Pause a given thread or threads (varargs) and clear so it will not draw
+	 * visible on screen.
 	 * 
-	 * @param thread(s) to pause
+	 * @param thread The thread(s) to pause
 	 * @see #pauseThread(PThread...)
+	 * @see #pauseAndClearThreads()
+	 * @see #resumeThread(PThread...)
 	 */
 	public void pauseAndClearThread(PThread... thread) {
 		ArrayList<PThread> pauseThreads = new ArrayList<PThread>(Arrays.asList(thread));
@@ -309,9 +327,8 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Pauses execution of all threads -- they will still be drawn to the screen in
-	 * their paused state. Stops and Doesn't clear threads from the buffer. Threads
-	 * will continue to render there
+	 * Pauses all threads. Note that paused threads will continue to be drawn in
+	 * their paused state.
 	 * 
 	 * @see #resumeThreads()
 	 * @see #pauseAndClearThreads()
@@ -321,7 +338,10 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Pauses threads and hides from them being drawn.
+	 * Pauses all threads and clears them from being drawn.
+	 * 
+	 * @see #resumeThreads()
+	 * @see #pauseThreads()
 	 */
 	public void pauseAndClearThreads() {
 		threads.values().forEach(runnable -> runnable.cancel(true));
@@ -339,6 +359,7 @@ public class PThreadManager {
 	 * Resumes a given thread or threads (varargs).
 	 * 
 	 * @param thread The thread (or threads) to resume
+	 * @see #pauseThread(PThread...)
 	 */
 	public void resumeThread(PThread... thread) {
 		ArrayList<PThread> resumeThreads = new ArrayList<PThread>(Arrays.asList(thread));
@@ -352,7 +373,10 @@ public class PThreadManager {
 	}
 
 	/**
-	 * Resumes any paused threads.
+	 * Resumes any and all paused threads.
+	 * 
+	 * @see #pauseThreads()
+	 * @see #pauseAndClearThreads()
 	 */
 	public void resumeThreads() {
 		for (PThread thread : threads.keySet()) {
@@ -366,7 +390,7 @@ public class PThreadManager {
 	 * Stops a given thread or threads (varargs) and removes it from the thread
 	 * manager (cannot be resumed).
 	 * 
-	 * @param thread The thread (or threads) to stop
+	 * @param thread The thread (or threads) to stop indefinitely
 	 */
 	public void stopThread(PThread... thread) {
 		ArrayList<PThread> stopThreads = new ArrayList<PThread>(Arrays.asList(thread));
@@ -394,8 +418,8 @@ public class PThreadManager {
 	 */
 	public void draw() {
 		if (unlinkComputeDraw) {
-			threads.forEach((thread, value) -> {
-				if (!value.isCancelled()) {
+			threads.forEach((thread, runnable) -> {
+				if (!runnable.isCancelled()) {
 					thread.calc();
 				}
 				p.image(thread.g, 0, 0);
@@ -409,11 +433,12 @@ public class PThreadManager {
 
 	/**
 	 * Advanced: By default, each thread's draw() and calc() methods are called
-	 * sequentially within the thread. What if a given thread is severely draw-call
-	 * bound? When this function is called, all threads' (both existing and future)
-	 * <i>calc()</i> method will be called as part of the thread manager's
-	 * {@link #draw()} method and not within the threads: draw--intensive sketches
-	 * (threads) will not slow down the speed of a thread.
+	 * sequentially within the thread. <i>But what if a given thread is severely
+	 * draw-call bound?</i> When this function is called, all threads' (both
+	 * existing and future) <i>calc()</i> method will be called as part of the
+	 * thread manager's {@link #draw()} method and not within the threads. In other
+	 * words, draw-intensive sketches (threads) will not slow down the
+	 * processing/calculation speed of a thread.
 	 */
 	public void unlinkComputeDraw() {
 		if (!unlinkComputeDraw) {
@@ -423,11 +448,14 @@ public class PThreadManager {
 					threads.get(thread).cancel(true);
 					addRunnable(thread);
 				}
-			});	
+			});
 		}
 	}
-	
+
 	/**
+	 * Instructs the thread manager that both existing and future threads' draw()
+	 * and calc() methods are to be called sequentially (default behaviour).
+	 * 
 	 * @see #unlinkComputeDraw()
 	 */
 	public void relinkComputeDraw() {
@@ -438,12 +466,12 @@ public class PThreadManager {
 					threads.get(thread).cancel(true);
 					addRunnable(thread);
 				}
-			});	
+			});
 		}
 	}
 
 	/**
-	 * Retuns the count of the threads (both paused and running) managed by this
+	 * Returns the count of the threads (both paused and running) managed by this
 	 * thread manager.
 	 * 
 	 * @return thread count
@@ -453,37 +481,41 @@ public class PThreadManager {
 	}
 
 	/**
-	 * First enables timing collection for each thread, then returns the average
-	 * draw
+	 * First enables timing collection for each thread, then returns the average FPS
+	 * of running threads' draw() loops.
 	 * 
-	 * <p>
-	 * [1000/{@link #getAverageDrawTime()}] returns FPS.
-	 * <p>
-	 * 
-	 * @return mean draw() time of all threads (milliseconds).
-	 * @see #getAverageCalcTime()
+	 * @return mean draw() FPS of all threads
+	 * @see #getAverageCalcFPS()
 	 */
-	public float getAverageDrawTime() {
-		if (!threads.isEmpty()) {
-			threads.keySet().forEach(thread -> thread.enableTiming());
-			return (float) threads.keySet().stream().mapToDouble(thread -> thread.drawTime).sum() / threads.size();
-		} else {
-			return 0;
+	public float getAverageDrawFPS() {
+		int count = 0;
+		float sum = 0;
+		for (PThread thread : threads.keySet()) {
+			if (!threads.get(thread).isCancelled()) {
+				count++;
+				sum += thread.getDrawFPS();
+			}
 		}
+		return count > 0 ? sum/count : 0;
 	}
 
 	/**
+	 * First enables timing collection for each thread, then returns the average FPS
+	 * of running threads' calc() loops.
 	 * 
-	 * @return mean calc() time of all threads (milliseconds).
-	 * @see #getAverageDrawTime()
+	 * @return mean calc() FPS of all threads
+	 * @see #getAverageDrawFPS()
 	 */
-	public float getAverageCalcTime() {
-		if (!threads.isEmpty()) {
-			threads.keySet().forEach(thread -> thread.enableTiming());
-			return (float) threads.keySet().stream().mapToDouble(thread -> thread.calcTime).sum() / threads.size();
-		} else {
-			return 0;
+	public float getAverageCalcFPS() {
+		int count = 0;
+		float sum = 0;
+		for (PThread thread : threads.keySet()) {
+			if (!threads.get(thread).isCancelled()) {
+				count++;
+				sum += thread.getCalcFPS();
+			}
 		}
+		return count > 0 ? sum/count : 0;
 	}
 
 	/**

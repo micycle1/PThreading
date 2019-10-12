@@ -11,12 +11,11 @@ import processing.core.PGraphics;
  * <p>
  * Prefix every call to a Processing draw method with g -- for example:
  * <i>g.rect(10,10,10,10);</i>
- * <p>
- * 
+ * </p>
  * <p>
  * Refer to any PApplet variable by prefixing it with p -- for example:
- * <i>p.mousePressed</i>
- * <p/>
+ * <i>p.mousePressed</i>.
+ * </p>
  * 
  * @author micycle1
  *
@@ -88,14 +87,11 @@ public abstract class PThread {
 	}
 
 	/**
-	 * This method must be overridden.
-	 * 
-	 * Override this method with code that
-	 * 
-	 * <b>This code will be executed in a thread.</b> Put code that. Remember to
-	 * prefix calls to processing draw functions with <i>pthread.___()</i> (eg.
-	 * <i>pthread.ellipse(50, 50, 50, 50)</i> Internally, this method is called
-	 * after {@link #calc()}.
+	 * The heart of a PThread. Override this method with <b> code that should be
+	 * executed in a thread.</b> Prefix calls to processing draw functions with
+	 * <i>g.</i> (eg. <i>g.ellipse(50, 50, 50, 50)</i>.
+	 * <p>
+	 * Internally, this method is called after {@link #calc()}.
 	 * 
 	 * @see #calc()
 	 */
@@ -104,8 +100,9 @@ public abstract class PThread {
 	/**
 	 * An optional override (you <i>can</i> do calculation-related code in
 	 * {@link #draw()}. <b>This code will be executed in a thread.</b> This is
-	 * useful when the 'unthread drawing' flag is true. Internally, this method is
-	 * called before {@link #draw()}.
+	 * useful when the 'unthread drawing' flag is true.
+	 * <p>
+	 * Internally, this method is called before {@link #draw()}.
 	 * 
 	 * @see #draw()
 	 */
@@ -120,26 +117,26 @@ public abstract class PThread {
 
 	/**
 	 * Returns time taken for the thread's draw() loop to execute. Can be used with
-	 * {@link #getCalcTime()} to determine if a thread is calculation bound or
+	 * {@link #getCalcFPS()} to determine if a thread is calculation bound or
 	 * draw-call bound.
 	 * 
 	 * @return draw() execution time (milliseconds)
 	 */
-	final public float getDrawTime() {
+	final public float getDrawFPS() {
 		timing = true;
-		return (drawTime / 1000000f);
+		return 1000/(drawTime / 1000000f);
 	}
 
 	/**
 	 * Returns time taken for the thread's calc() loop to execute. Can be used with
-	 * {@link #getDrawTime()} to determine if a thread is calculation bound or
+	 * {@link #getDrawFPS()} to determine if a thread is calculation bound or
 	 * draw-call bound.
 	 * 
 	 * @return calc() execution time (milliseconds)
 	 */
-	final public float getCalcTime() {
+	final public float getCalcFPS() {
 		timing = true;
-		return (calcTime / 1000000f);
+		return 1000/(calcTime / 1000000f);
 	}
 
 	/**
@@ -147,8 +144,8 @@ public abstract class PThread {
 	 * a slight overhead. By default, timing information is not enabled.
 	 * 
 	 * @see #disableTiming()
-	 * @see #getDrawTime()
-	 * @see #getCalcTime()
+	 * @see #getDrawFPS()
+	 * @see #getCalcFPS()
 	 */
 	final public void enableTiming() {
 		timing = true;
