@@ -3,7 +3,7 @@ PThreading: A simple multithreaded framework for Processing.
 
 ---
 
-The framework consists of two classes: `PThread` and `PThreadManager`. Override the `PThread` class with your code and then add instances of your new class to a PThreadManager which runs the instances as threads that draw into your Processing sketch.
+The framework consists of two classes: `PThread` and `PThreadManager`. Override the `PThread` class with your code and then add instances of your new class to a PThreadManager to run the instances as threads that draw into your Processing sketch in a multithreaded manner.
 
 ## Motivation
 
@@ -34,8 +34,7 @@ Download *pthreading.jar* from [releases](https://github.com/micycle1/PThreading
 
 ### 1. Extending PThread
 
-Create a new class that extends PThread. You have to override the PThread's *draw()* method; overriding *calc* is optional. In *draw()*, put code you wish to be executted 
-Put your code in draw(). A very simple example is shown below.
+Create a new class that extends PThread. You have to override the PThread's *draw()* method; overriding *calc()* is optional. In *draw()*, put Processing drawing code that you wish to be executed as a thread. A very simple example is shown below:
 
 #### PDE Example:
 
@@ -82,8 +81,7 @@ class myThread extends PThread {
 * Prefix every call to a Processing variable with p -- for example: *p.mousePressed* (relevant in non-PDE environments only).
 
 ### 2. Creating a PThreadManager
-Create a thread manager and add threads to it. In all cases, adding a thread to a thread manager will run it immediately.
-A [variety](micycle1.github.io/PThreading/pthreading/PThreadManager.html) of constructors are available. In this example the most simple constructor has been chosen. You can add multiple types of threads to a single thread manager
+Create a thread manager and add threads to it. A [variety](micycle1.github.io/PThreading/pthreading/PThreadManager.html) of constructors are available. In this example the most simple constructor has been chosen. You can add multiple types of threads to a single thread manager.
 
 ```
 threadManager = new PThreadManager(this);
@@ -93,7 +91,7 @@ threadManager.addThread(a, b);
 ```
 
 ### 3. Drawing threads
-After adding a thread to a thread manager it will run immediately; however this does not mean the thread will be drawn into the sketch. To do this, call `draw()` on the thread manager:
+After adding a thread to a thread manager it will run immediately; however this does not mean the thread will be drawn into the sketch. To do this, call `draw()` on the thread manager.
 
 ```
 void draw() {
