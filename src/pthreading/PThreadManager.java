@@ -7,14 +7,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import javax.swing.Timer;
-
-import org.apache.commons.lang3.ClassUtils;
 
 import processing.core.PApplet;
 
@@ -40,10 +40,11 @@ public class PThreadManager {
 	private final PApplet p;
 	private final int targetFPS;
 	private final ScheduledExecutorService scheduler;
-	private final HashMap<PThread, ScheduledFuture<?>> threads;
-	private final HashMap<PThread, Integer> threadFPS;
+	private final LinkedHashMap<PThread, ScheduledFuture<?>> threads;
+	private final LinkedHashMap<PThread, Integer> threadFPS;
 	private boolean boundToParent = false;
 	private boolean unlinkComputeDraw = false;
+	private int sketchX, sketchY;
 
 	/**
 	 * Constructs a new (empty) thread manager. The simplest constructor.
@@ -52,11 +53,13 @@ public class PThreadManager {
 	 */
 	public PThreadManager(PApplet p) {
 		this.p = p;
-		threads = new HashMap<PThread, ScheduledFuture<?>>();
-		threadFPS = new HashMap<PThread, Integer>();
+		threads = new LinkedHashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new LinkedHashMap<PThread, Integer>();
 		this.targetFPS = DEFAULT_FPS;
 		scheduler = Executors.newScheduledThreadPool(50);
 		p.registerMethod("dispose", this);
+		sketchX = p.width;
+		sketchY = p.height;
 	}
 
 	/**
@@ -70,11 +73,13 @@ public class PThreadManager {
 	 */
 	public PThreadManager(PApplet p, int targetFPS) {
 		this.p = p;
-		threads = new HashMap<PThread, ScheduledFuture<?>>();
-		threadFPS = new HashMap<PThread, Integer>();
+		threads = new LinkedHashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new LinkedHashMap<PThread, Integer>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(50);
 		p.registerMethod("dispose", this);
+		sketchX = p.width;
+		sketchY = p.height;
 	}
 
 	/**
@@ -96,11 +101,13 @@ public class PThreadManager {
 		}
 
 		this.p = p;
-		threads = new HashMap<PThread, ScheduledFuture<?>>();
-		threadFPS = new HashMap<PThread, Integer>();
+		threads = new LinkedHashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new LinkedHashMap<PThread, Integer>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
+		sketchX = p.width;
+		sketchY = p.height;
 
 		try {
 			Constructor<? extends PThread> constructor = threadClass.getDeclaredConstructor(PApplet.class); // todo
@@ -141,23 +148,40 @@ public class PThreadManager {
 		}
 
 		this.p = p;
-		threads = new HashMap<PThread, ScheduledFuture<?>>();
-		threadFPS = new HashMap<PThread, Integer>();
+		threads = new LinkedHashMap<PThread, ScheduledFuture<?>>();
+		threadFPS = new LinkedHashMap<PThread, Integer>();
 		this.targetFPS = targetFPS;
 		scheduler = Executors.newScheduledThreadPool(threadCount);
 		p.registerMethod("dispose", this);
+		sketchX = p.width;
+		sketchY = p.height;
 
-		final Class<?>[] constructorTypes = new Class[args.length + 1];
-		constructorTypes[0] = PApplet.class;
-		final Object[] completeArgs = new Object[args.length + 1];
-		completeArgs[0] = p;
+		Class<?>[] constructorTypes;
+		Object[] completeArgs;
+		int inc = 1;
+
+		if (p.getClass() == threadClass.getDeclaredConstructors()[0].getParameterTypes()[0]
+				&& p.getClass() != PApplet.class) { // PDE Workaround
+			inc = 2;
+			constructorTypes = new Class[args.length + inc];
+			constructorTypes[0] = p.getClass();
+			constructorTypes[1] = PApplet.class;
+			completeArgs = new Object[args.length + inc];
+			completeArgs[0] = p;
+			completeArgs[1] = p;
+		} else {
+			constructorTypes = new Class[args.length + inc];
+			constructorTypes[0] = PApplet.class;
+			completeArgs = new Object[args.length + inc];
+			completeArgs[0] = p;
+		}
 
 		for (int i = 0; i < args.length; i++) {
-			completeArgs[i + 1] = args[i];
+			completeArgs[i + inc] = args[i];
 			if (ClassUtils.isPrimitiveWrapper(args[i].getClass())) {
-				constructorTypes[i + 1] = ClassUtils.wrapperToPrimitive(args[i].getClass()); // TODO stable?
+				constructorTypes[i + inc] = ClassUtils.wrapperToPrimitive(args[i].getClass()); // TODO stable?
 			} else {
-				constructorTypes[i + 1] = args[i].getClass();
+				constructorTypes[i + inc] = args[i].getClass();
 			}
 		}
 
@@ -255,17 +279,32 @@ public class PThreadManager {
 			throw new IllegalArgumentException("threadCount should be more than 0");
 		}
 
-		final Class<?>[] constructorTypes = new Class[args.length + 1];
-		constructorTypes[0] = PApplet.class;
-		final Object[] completeArgs = new Object[args.length + 1];
-		completeArgs[0] = p;
+		Class<?>[] constructorTypes;
+		Object[] completeArgs;
+		int inc = 1;
+
+		if (p.getClass() == threadClass.getDeclaredConstructors()[0].getParameterTypes()[0]
+				&& p.getClass() != PApplet.class) { // PDE Workaround
+			inc = 2;
+			constructorTypes = new Class[args.length + inc];
+			constructorTypes[0] = p.getClass();
+			constructorTypes[1] = PApplet.class;
+			completeArgs = new Object[args.length + inc];
+			completeArgs[0] = p;
+			completeArgs[1] = p;
+		} else {
+			constructorTypes = new Class[args.length + inc];
+			constructorTypes[0] = PApplet.class;
+			completeArgs = new Object[args.length + inc];
+			completeArgs[0] = p;
+		}
 
 		for (int i = 0; i < args.length; i++) {
-			completeArgs[i + 1] = args[i];
+			completeArgs[i + inc] = args[i];
 			if (ClassUtils.isPrimitiveWrapper(args[i].getClass())) {
-				constructorTypes[i + 1] = ClassUtils.wrapperToPrimitive(args[i].getClass()); // TODO stable?
+				constructorTypes[i + inc] = ClassUtils.wrapperToPrimitive(args[i].getClass()); // TODO stable?
 			} else {
-				constructorTypes[i + 1] = args[i].getClass();
+				constructorTypes[i + inc] = args[i].getClass();
 			}
 		}
 
@@ -417,6 +456,15 @@ public class PThreadManager {
 	 * {@link #bindDraw()}.
 	 */
 	public void draw() {
+
+		if (sketchX != p.width || sketchY != p.height) {
+			pauseThreads(); // TODO add delay?
+			threads.keySet().forEach(t -> t.resize());
+			resumeThreads();
+		}
+		sketchX = p.width;
+		sketchY = p.height;
+
 		if (unlinkComputeDraw) {
 			threads.forEach((thread, runnable) -> {
 				if (!runnable.isCancelled()) {
@@ -443,12 +491,19 @@ public class PThreadManager {
 	public void unlinkComputeDraw() {
 		if (!unlinkComputeDraw) {
 			unlinkComputeDraw = true;
-			threads.forEach((thread, value) -> {
-				if (!value.isCancelled()) {
-					threads.get(thread).cancel(true);
-					addRunnable(thread);
+			Timer timer = new Timer(20, new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					threads.forEach((thread, value) -> {
+						if (!value.isCancelled()) {
+							threads.get(thread).cancel(true);
+							addRunnable(thread);
+						}
+					});
 				}
 			});
+			timer.setRepeats(false);
+			timer.start();
 		}
 	}
 
@@ -496,7 +551,7 @@ public class PThreadManager {
 				sum += thread.getDrawFPS();
 			}
 		}
-		return count > 0 ? sum/count : 0;
+		return count > 0 ? sum / count : 0;
 	}
 
 	/**
@@ -515,7 +570,7 @@ public class PThreadManager {
 				sum += thread.getCalcFPS();
 			}
 		}
-		return count > 0 ? sum/count : 0;
+		return count > 0 ? sum / count : 0;
 	}
 
 	/**
@@ -578,15 +633,50 @@ public class PThreadManager {
 	 */
 	private void addRunnable(PThread thread) {
 		ScheduledFuture<?> scheduledRunnable;
+		thread.internalSetup();
 		if (unlinkComputeDraw) {
 			scheduledRunnable = scheduler.scheduleAtFixedRate(thread.noCalc, 0,
-					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : DEFAULT_FPS),
+					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : targetFPS),
 					TimeUnit.MICROSECONDS);
 		} else {
 			scheduledRunnable = scheduler.scheduleAtFixedRate(thread.r, 0,
-					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : DEFAULT_FPS),
+					1000000 / (threadFPS.containsKey(thread) ? threadFPS.get(thread) : targetFPS),
 					TimeUnit.MICROSECONDS);
 		}
 		threads.put(thread, scheduledRunnable);
+	}
+
+	/**
+	 * org.apache.commons.lang3.ClassUtils;
+	 */
+	private static final class ClassUtils {
+		private static final Map<Class<?>, Class<?>> primitiveWrapperMap = new HashMap<>();
+		private static final Map<Class<?>, Class<?>> wrapperPrimitiveMap = new HashMap<>();
+		static {
+			primitiveWrapperMap.put(Boolean.TYPE, Boolean.class);
+			primitiveWrapperMap.put(Byte.TYPE, Byte.class);
+			primitiveWrapperMap.put(Character.TYPE, Character.class);
+			primitiveWrapperMap.put(Short.TYPE, Short.class);
+			primitiveWrapperMap.put(Integer.TYPE, Integer.class);
+			primitiveWrapperMap.put(Long.TYPE, Long.class);
+			primitiveWrapperMap.put(Double.TYPE, Double.class);
+			primitiveWrapperMap.put(Float.TYPE, Float.class);
+			primitiveWrapperMap.put(Void.TYPE, Void.TYPE);
+			for (final Map.Entry<Class<?>, Class<?>> entry : primitiveWrapperMap.entrySet()) {
+				final Class<?> primitiveClass = entry.getKey();
+				final Class<?> wrapperClass = entry.getValue();
+				if (!primitiveClass.equals(wrapperClass)) {
+					wrapperPrimitiveMap.put(wrapperClass, primitiveClass);
+				}
+			}
+		}
+
+		private static Class<?> wrapperToPrimitive(final Class<?> cls) {
+			return wrapperPrimitiveMap.get(cls);
+		}
+
+		private static boolean isPrimitiveWrapper(final Class<?> type) {
+			return wrapperPrimitiveMap.containsKey(type);
+		}
 	}
 }

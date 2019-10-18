@@ -1,9 +1,9 @@
 # PThreading
-PThreading: A simple multithreaded framework for Processing.
+PThreading: A framework for multithreaded drawing in [Processing](https://processing.org/).
 
 ---
 
-The framework consists of two classes: `PThread` and `PThreadManager`. Override the `PThread` class with your code and then add instances of your new class to a PThreadManager to run the instances as threads that draw into your Processing sketch in a multithreaded manner.
+The framework consists of two classes: `PThread` and `PThreadManager`. Override the `PThread` class with Processing code and then add instances of your new class to a PThreadManager; this will run the instances as threads that draw into your Processing sketch in a multithreaded manner.
 
 ## Motivation
 
@@ -15,7 +15,7 @@ Processing does indeed provide a quick and dirty way to implement a simple threa
 
 ... leaving *thread()* suitable only for CPU-bound sketches, at best. 
 
-In contrast, PThreading provides a way to do multithreaded drawing -- not just calculation -- and does so in an easy-to-use and well-synchronized manner. It exploits the fact that PGraphics objects can be drawn into safely from other threads.
+In contrast, PThreading provides a way to do **multithreaded drawing** -- not just calculation -- and does so in an easy-to-use and well-synchronized manner. It exploits the fact that *PGraphics* objects can be drawn into safely from other threads.
 
 ## Setup
 
@@ -34,7 +34,7 @@ Download *pthreading.jar* from [releases](https://github.com/micycle1/PThreading
 
 ### 1. Extending PThread
 
-Create a new class that extends PThread. You have to override the PThread's *draw()* method; overriding *calc()* is optional. In *draw()*, put Processing drawing code that you wish to be executed as a thread. A very simple example is shown below:
+Create a new class that extends PThread. You have to override the PThread's *draw()* method; overriding *calc()* and *setup()* is optional. In *draw()*, put Processing drawing code that you wish to be executed as a thread. A very simple example is shown below:
 
 #### PDE Example:
 
@@ -77,8 +77,9 @@ class myThread extends PThread {
 ```
 
 **Important**: 
-* Prefix every call to a Processing draw method with g -- for example: *g.rect(10,10,10,10)* (relevant in all environments).
-* Prefix every call to a Processing variable with p -- for example: *p.mousePressed* (relevant in non-PDE environments only).
+* Prefix every call to a Processing **draw method** with **g** -- for example: *g.rect(10,10,10,10)* (relevant in all environments).
+* Prefix every call to a Processing **variable** with **p** -- for example: *p.mousePressed* (relevant in non-PDE environments only).
+* By default, *smooth()* is enabled for threads. Put *g.noSmooth();* in the thread consructor to disable anti-aliasing and thereby improve draw FPS.
 
 ### 2. Creating a PThreadManager
 Create a thread manager and add threads to it. A [variety](micycle1.github.io/PThreading/pthreading/PThreadManager.html) of constructors are available. In this example the most simple constructor has been chosen. You can add multiple types of threads to a single thread manager.
@@ -104,8 +105,7 @@ Alternatively, you can call `threadManager.bindDraw()` once -- in `setup` for ex
 
 ---
 
-That's it: now `a` and `b` will run as threads, drawing into the sketch. See /examples for more sophisticated behaviour.
+That's it: now `a` and `b` will run as threads, drawing into the sketch. See the repo [examples](https://github.com/micycle1/PThreading/tree/master/examples) for the framework in action and more sophisticated behaviour.
 
 ## Limitations
 Each thread uses the `Java2D` renderer, since this is the only renderer that allows PGraphics objects to be instantiated and drawn into from other threads. As a consequence you cannot **thread** `OPENGL` drawing, or any 3D draw functions -- note that you can still use the framework with a 3D sketch but any drawing with the PThreads is limited to 2D.
-Not all sketches are suitable:

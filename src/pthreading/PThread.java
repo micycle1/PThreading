@@ -87,6 +87,29 @@ public abstract class PThread {
 	}
 
 	/**
+	 * An optional override. Called at instantiation. Use this method set PGraphics'
+	 * settings (e.g. <i>g.colorMode(PApplet.HSB, 360, 100, 100);</i> ), etc.
+	 */
+	protected void setup() {
+	}
+
+	/**
+	 * An optional override (you <i>can</i> do calculation-related code in
+	 * {@link #draw()}, but putting it here may make more sense). <b>This code will
+	 * be executed in a thread.</b>
+	 * <p>
+	 * Putting calculation-related code here, rather than in draw(), is useful when
+	 * the 'unthread drawing' flag is true, so that draw time and calc time can be
+	 * compared.
+	 * <p>
+	 * Internally, this method is called before {@link #draw()}.
+	 * 
+	 * @see #draw()
+	 */
+	protected void calc() {
+	}
+
+	/**
 	 * The heart of a PThread. Override this method with <b> code that should be
 	 * executed in a thread.</b> Prefix calls to processing draw functions with
 	 * <i>g.</i> (eg. <i>g.ellipse(50, 50, 50, 50)</i>.
@@ -97,22 +120,25 @@ public abstract class PThread {
 	 */
 	protected abstract void draw();
 
-	/**
-	 * An optional override (you <i>can</i> do calculation-related code in
-	 * {@link #draw()}. <b>This code will be executed in a thread.</b> This is
-	 * useful when the 'unthread drawing' flag is true.
-	 * <p>
-	 * Internally, this method is called before {@link #draw()}.
-	 * 
-	 * @see #draw()
-	 */
-	protected void calc() {
-	}
-
 	void clearPGraphics() {
 		g.beginDraw();
 		g.clear();
 		g.endDraw();
+	}
+
+	void internalSetup() {
+		g.beginDraw();
+		setup();
+		g.endDraw();
+	}
+
+	/**
+	 * Recreate PGraphics object when parent sketch is resized.
+	 */
+	void resize() {
+		g.setSize(p.width, p.height);
+
+		internalSetup();
 	}
 
 	/**
@@ -124,7 +150,7 @@ public abstract class PThread {
 	 */
 	final public float getDrawFPS() {
 		timing = true;
-		return 1000/(drawTime / 1000000f);
+		return 1000 / (drawTime / 1000000f);
 	}
 
 	/**
@@ -136,7 +162,7 @@ public abstract class PThread {
 	 */
 	final public float getCalcFPS() {
 		timing = true;
-		return 1000/(calcTime / 1000000f);
+		return 1000 / (calcTime / 1000000f);
 	}
 
 	/**
