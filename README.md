@@ -101,7 +101,7 @@ void draw() {
 }
 ```
 
-Alternatively, you can call `threadManager.bindDraw()` once -- in `setup` for example -- to bind the `draw()` method of the thread manager to the end of the draw method of the sketch. After doing this, you no longer need to make a manual call to `threadManager.bindDraw()` to draw threads.
+Alternatively, you can call `threadManager.bindDraw()` once -- in `setup` for example -- to bind the `draw()` method of the thread manager to the end of the draw method of the sketch. After doing this, you no longer need to make a manual call to `threadManager.draw()` to draw threads.
 
 ---
 
